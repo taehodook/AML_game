@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AML 의심거래 트레이닝 게임</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ===================== PAGE: MAIN ===================== -->
+<div id="page-main" class="page active">
+  <header class="main-header">
+    <div class="container main-header-inner">
+      <div class="logo">
+        <div class="logo-icon">🔍</div>
+        <div>
+          <div class="logo-text">AML Training</div>
+          <div class="logo-sub">의심거래 탐지 훈련</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;" id="header-auth-area">
+        <button class="btn btn-secondary btn-sm" onclick="showModal('modal-login')">로그인</button>
+        <button class="btn btn-primary btn-sm" onclick="showModal('modal-register')">회원가입</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <section class="hero-section">
+      <div class="hero-badge">🏛️ AML COMPLIANCE TRAINING</div>
+      <h1 class="hero-title">
+        의심거래 범인을<br><span class="highlight">찾아내라</span>
+      </h1>
+      <p class="hero-desc">
+        KYC 정보를 분석하고, 거래 패턴을 파악해 자금세탁 의심 거래를 탐지하는<br>
+        실전형 AML 훈련 게임입니다.
+      </p>
+    </section>
+
+    <!-- 게임 선택 UI -->
+    <div id="game-lobby">
+      <div class="card" style="margin-bottom:24px;">
+        <h2 class="section-title" style="font-size:18px;">업종 선택</h2>
+        <p style="color:var(--text2);font-size:14px;margin-bottom:16px;">플레이할 업종을 선택하세요</p>
+        <div class="game-select-grid" id="industry-select-grid"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:24px;">
+        <h2 class="section-title" style="font-size:18px;">게임 선택</h2>
+        <p style="color:var(--text2);font-size:14px;margin-bottom:16px;">도전할 게임을 선택하세요</p>
+        <div id="game-select-list">
+          <div class="loading"><div class="spinner"></div> 게임 목록 로딩 중...</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:24px;">
+        <h2 class="section-title" style="font-size:18px;">난이도 선택</h2>
+        <div class="difficulty-grid">
+          <div class="diff-card" onclick="selectDifficulty('low')">
+            <div class="diff-label">🟢 하 (쉬움)</div>
+            <div class="diff-detail">고객 3명 / 정보 13항목</div>
+          </div>
+          <div class="diff-card" onclick="selectDifficulty('mid')">
+            <div class="diff-label">🟡 중 (보통)</div>
+            <div class="diff-detail">고객 5명 / 정보 13항목</div>
+          </div>
+          <div class="diff-card selected" onclick="selectDifficulty('high')">
+            <div class="diff-label">🔴 고 (어려움)</div>
+            <div class="diff-detail">고객 8명 / 정보 모두</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-bottom:60px;">
+        <button class="btn btn-primary btn-lg" onclick="startGame()">
+          🕵️ 게임 시작하기
+        </button>
+        <p style="margin-top:12px;font-size:13px;color:var(--text3)">* 로그인 후 랭킹 등록이 가능합니다</p>
+      </div>
+    </div>
+
+    <!-- 랭킹 섹션 -->
+    <div class="ranking-section">
+      <h2 class="section-title">🏆 이달의 랭킹</h2>
+      <p class="section-sub">현재 월 기준 최고 기록</p>
+      <div class="table-wrapper">
+        <table class="ranking-table">
+          <thead>
+            <tr>
+              <th>순위</th>
+              <th>닉네임</th>
+              <th>이름</th>
+              <th>난이도</th>
+              <th>기록</th>
+              <th>도전횟수</th>
+              <th>기록일</th>
+            </tr>
+          </thead>
+          <tbody id="ranking-tbody">
+            <tr><td colspan="7" class="loading"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PAGE: KYC 열람 ===================== -->
+<div id="page-kyc" class="page">
+  <header class="kyc-header">
+    <div class="container kyc-header-inner">
+      <div>
+        <div style="font-size:13px;color:var(--text2);">KYC 정보 열람</div>
+        <div id="kyc-game-title" style="font-weight:700;"></div>
+      </div>
+      <div class="kyc-timer" id="kyc-timer">30</div>
+      <div>
+        <span class="badge badge-warning" id="kyc-diff-badge"></span>
+      </div>
+    </div>
+  </header>
+  <div class="container">
+    <div style="padding:16px 0 8px;font-size:13px;color:var(--text2);">
+      ⚠️ KYC 정보를 빠르게 확인하고 기억하세요. 30초 후 거래 내역이 표시됩니다.
+    </div>
+    <div class="kyc-grid" id="kyc-grid"></div>
+  </div>
+</div>
+
+<!-- ===================== PAGE: 게임 ===================== -->
+<div id="page-game" class="page">
+  <header class="game-header">
+    <div class="container game-header-inner">
+      <div>
+        <div class="game-info-badges" id="game-badges"></div>
+        <div style="font-size:13px;font-weight:700;margin-top:4px;" id="game-title-header"></div>
+      </div>
+      <div class="game-timer-block">
+        <div class="game-elapsed" id="game-elapsed">00:00</div>
+        <div class="game-elapsed-label">경과 시간</div>
+      </div>
+      <div class="game-actions">
+        <button class="btn btn-secondary btn-sm" onclick="showAnswerReveal()">📋 정답보기</button>
+        <button class="btn btn-danger btn-sm" onclick="confirmGiveUp()">🏳️ 포기하기</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- 패널티 표시 -->
+    <div id="penalty-banner" class="penalty-banner" style="display:none;">
+      ⏱ 힌트 열람으로 <strong id="penalty-time"></strong>초 패널티가 적용되었습니다.
+    </div>
+
+    <!-- 거래내역 -->
+    <div class="transaction-section">
+      <div class="transaction-title">
+        📊 거래 내역
+        <span id="tx-count-badge" class="badge badge-info"></span>
+      </div>
+      <div class="table-wrapper" id="transaction-table-wrapper">
+        <table>
+          <thead id="tx-head"></thead>
+          <tbody id="tx-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 힌트 버튼 -->
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text2);">💡 단서 힌트 (클릭 시 30초 패널티)</div>
+    <div class="hint-section">
+      <div class="hint-btn" onclick="requestHint(0)">
+        <div class="hint-btn-icon">📰</div>
+        <div class="hint-btn-label">의심거래 힌트</div>
+        <div class="hint-btn-sub">언론기사 / KOFIU 자료</div>
+      </div>
+      <div class="hint-btn" onclick="requestHint(1)">
+        <div class="hint-btn-icon">👤</div>
+        <div class="hint-btn-label">KYC 다시보기</div>
+        <div class="hint-btn-sub">30초간 KYC 정보 재열람</div>
+      </div>
+    </div>
+
+    <!-- 답안 제출 -->
+    <div class="answer-section">
+      <div class="answer-title">🎯 범인 신고 및 사유 제출</div>
+      <div class="form-group">
+        <label>범인 이름 / 상호명 (법인명)</label>
+        <input type="text" id="answer-criminal" placeholder="의심거래 범인의 이름 또는 상호명을 입력하세요">
+      </div>
+      <div class="answer-grid">
+        <div class="form-group">
+          <label>고객 특성</label>
+          <textarea id="answer-trait" rows="3" placeholder="고객의 특이한 특성을 기재하세요&#10;예) 무직, 고위험등급, 외국인 등"></textarea>
+        </div>
+        <div class="form-group">
+          <label>의심거래 유형</label>
+          <textarea id="answer-type" rows="3" placeholder="의심거래 유형을 기재하세요&#10;예) 자금세탁, 주가조작, 스머핑 등"></textarea>
+        </div>
+        <div class="form-group">
+          <label>결정적 사유</label>
+          <textarea id="answer-reason" rows="3" placeholder="결정적 의심 사유를 기재하세요&#10;예) 단기 반복 해외송금, 실소유자 불일치 등"></textarea>
+        </div>
+      </div>
+      <div class="answer-submit-row">
+        <div class="submit-count">정답 제출 횟수: <span id="submit-count-display">0</span>회</div>
+        <button class="btn btn-primary" onclick="submitAnswer()">🚨 범인 신고 제출</button>
+      </div>
+      <div id="answer-feedback" style="margin-top:16px;display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PAGE: 결과 ===================== -->
+<div id="page-result" class="page">
+  <div class="container">
+    <div class="result-box">
+      <div class="result-icon" id="result-icon"></div>
+      <div class="result-title" id="result-title"></div>
+      <div style="color:var(--text2);margin-bottom:16px;" id="result-subtitle"></div>
+      <div class="result-time" id="result-time"></div>
+      <div class="result-stats">
+        <div class="result-stat">
+          <div class="result-stat-val" id="result-submit-count"></div>
+          <div class="result-stat-label">제출 횟수</div>
+        </div>
+        <div class="result-stat">
+          <div class="result-stat-val" id="result-hint-count"></div>
+          <div class="result-stat-label">힌트 사용</div>
+        </div>
+        <div class="result-stat">
+          <div class="result-stat-val" id="result-difficulty"></div>
+          <div class="result-stat-label">난이도</div>
+        </div>
+      </div>
+      <div id="result-ranking-info" style="margin-bottom:24px;"></div>
+      <div class="answer-reveal" id="result-answer-reveal"></div>
+      <div style="margin-top:32px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-lg" onclick="restartGame()">🔄 다시 도전</button>
+        <button class="btn btn-secondary btn-lg" onclick="goHome()">🏠 메인으로</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PAGE: 관리자 ===================== -->
+<div id="page-admin" class="page">
+  <header class="admin-header">
+    <div class="container" style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:18px;font-weight:900;">⚙️ 관리자 페이지</div>
+      <button class="btn btn-secondary btn-sm" onclick="goHome()">← 메인으로</button>
+    </div>
+  </header>
+  <div class="container" style="padding-top:24px;">
+    <div class="admin-tabs">
+      <button class="admin-tab active" onclick="switchAdminTab('tab-games')">게임 관리</button>
+      <button class="admin-tab" onclick="switchAdminTab('tab-create')">게임 생성</button>
+      <button class="admin-tab" onclick="switchAdminTab('tab-users')">회원 관리</button>
+      <button class="admin-tab" onclick="switchAdminTab('tab-ranking-admin')">랭킹 관리</button>
+    </div>
+
+    <!-- 게임 목록 -->
+    <div class="admin-pane active" id="tab-games">
+      <h3 style="margin-bottom:16px;">등록된 게임</h3>
+      <div id="admin-game-list">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- 게임 생성 -->
+    <div class="admin-pane" id="tab-create">
+      <h3 style="margin-bottom:16px;">새 게임 생성</h3>
+      <div class="card">
+        <div class="form-group">
+          <label>게임 제목</label>
+          <input type="text" id="admin-game-title" placeholder="예) 은행업 - 해외 자금세탁 사건 #2">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>업종</label>
+            <select id="admin-game-industry">
+              <option value="bank">은행업</option>
+              <option value="securities">증권업</option>
+              <option value="epayment">전자금융업</option>
+              <option value="crypto">가상자산거래소</option>
+              <option value="casino">카지노업</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>활성화</label>
+            <select id="admin-game-active">
+              <option value="true">활성</option>
+              <option value="false">비활성</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>KYC 정보 (JSON 형식 직접 입력 또는 엑셀 업로드)</label>
+          <textarea id="admin-kyc-json" rows="6" placeholder='[{"id":"C001","name":"홍길동","type":"개인",...}]'></textarea>
+          <div class="form-hint">JSON 배열로 입력하거나 아래 엑셀 파일을 업로드하세요</div>
+        </div>
+        <div class="form-group">
+          <label>KYC 엑셀 업로드 (.xlsx)</label>
+          <input type="file" id="admin-kyc-file" accept=".xlsx,.xls,.csv">
+        </div>
+        <div class="form-group">
+          <label>거래내역 (JSON 형식)</label>
+          <textarea id="admin-tx-json" rows="6" placeholder='[{"date":"2024-03-01","time":"09:00",...}]'></textarea>
+        </div>
+        <div class="form-group">
+          <label>거래내역 엑셀 업로드</label>
+          <input type="file" id="admin-tx-file" accept=".xlsx,.xls,.csv">
+        </div>
+        <div class="divider"></div>
+        <h4 style="margin-bottom:12px;">정답 및 힌트</h4>
+        <div class="form-group">
+          <label>정답 범인 (이름/상호명)</label>
+          <input type="text" id="admin-answer-criminal" placeholder="정답 범인">
+        </div>
+        <div class="form-group">
+          <label>키워드 (쉼표로 구분, 최소 5개)</label>
+          <input type="text" id="admin-answer-keywords" placeholder="키워드1,키워드2,키워드3,...">
+        </div>
+        <div class="form-group">
+          <label>고객 특성</label>
+          <input type="text" id="admin-answer-trait" placeholder="정답 - 고객 특성">
+        </div>
+        <div class="form-group">
+          <label>의심거래 유형</label>
+          <input type="text" id="admin-answer-type" placeholder="정답 - 의심거래 유형">
+        </div>
+        <div class="form-group">
+          <label>결정적 사유</label>
+          <textarea id="admin-answer-reason" rows="3" placeholder="정답 - 결정적 사유"></textarea>
+        </div>
+        <div class="form-group">
+          <label>게임 의도 (출제 의도)</label>
+          <textarea id="admin-intent" rows="2" placeholder="이 게임을 통해 훈련하고자 하는 내용"></textarea>
+        </div>
+        <div class="divider"></div>
+        <h4 style="margin-bottom:12px;">힌트 단서</h4>
+        <div class="form-group">
+          <label>힌트1 - 제목</label>
+          <input type="text" id="admin-hint1-title" placeholder="언론기사 / KOFIU 자료 제목">
+        </div>
+        <div class="form-group">
+          <label>힌트1 - 내용</label>
+          <textarea id="admin-hint1-content" rows="4" placeholder="힌트 내용 직접 작성"></textarea>
+        </div>
+        <div class="form-row" style="margin-bottom:16px;">
+          <button class="btn btn-secondary btn-sm" onclick="previewGame()">👁️ 미리보기</button>
+          <button class="btn btn-primary" onclick="saveGame()">💾 게임 저장</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 회원 관리 -->
+    <div class="admin-pane" id="tab-users">
+      <h3 style="margin-bottom:16px;">회원 목록</h3>
+      <div id="admin-user-list">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- 랭킹 관리 -->
+    <div class="admin-pane" id="tab-ranking-admin">
+      <h3 style="margin-bottom:16px;">랭킹 관리</h3>
+      <div class="card" style="margin-bottom:16px;">
+        <p style="margin-bottom:16px;color:var(--text2);">월별 랭킹을 초기화합니다. 초기화하면 복구할 수 없습니다.</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label>초기화할 월 (YYYY-MM)</label>
+            <input type="text" id="admin-reset-month" placeholder="예) 2024-03">
+          </div>
+          <div style="display:flex;align-items:flex-end;">
+            <button class="btn btn-danger" onclick="confirmResetRanking()">🗑️ 랭킹 초기화</button>
+          </div>
+        </div>
+      </div>
+      <div id="admin-ranking-list">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODALS ===================== -->
+
+<!-- 로그인 -->
+<div class="modal-overlay" id="modal-login">
+  <div class="modal">
+    <div class="modal-title">🔐 로그인</div>
+    <button class="modal-close" onclick="closeModal('modal-login')">✕</button>
+    <div class="form-group">
+      <label>이메일</label>
+      <input type="email" id="login-email" placeholder="이메일 입력">
+    </div>
+    <div class="form-group">
+      <label>비밀번호</label>
+      <input type="password" id="login-pw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="doLogin()">로그인</button>
+    <div style="text-align:center;margin-top:16px;font-size:13px;color:var(--text2);">
+      계정이 없으신가요? <a href="#" onclick="closeModal('modal-login');showModal('modal-register')" style="color:var(--accent);">회원가입</a>
+    </div>
+    <div class="divider"></div>
+    <div style="text-align:center;">
+      <a href="#" onclick="closeModal('modal-login');showModal('modal-admin-login')" style="font-size:13px;color:var(--text3);">관리자 로그인</a>
+    </div>
+  </div>
+</div>
+
+<!-- 회원가입 -->
+<div class="modal-overlay" id="modal-register">
+  <div class="modal">
+    <div class="modal-title">✍️ 회원가입</div>
+    <button class="modal-close" onclick="closeModal('modal-register')">✕</button>
+    <div class="form-row">
+      <div class="form-group">
+        <label>이름 <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="reg-name" placeholder="실명">
+      </div>
+      <div class="form-group">
+        <label>닉네임 <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="reg-nickname" placeholder="게임에 표시될 닉네임">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>이메일 <span style="color:var(--danger)">*</span></label>
+      <input type="email" id="reg-email" placeholder="이메일 주소">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>휴대폰 번호</label>
+        <input type="tel" id="reg-phone" placeholder="010-0000-0000">
+      </div>
+      <div class="form-group">
+        <label>회사명</label>
+        <input type="text" id="reg-company" placeholder="소속 회사명">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>비밀번호 <span style="color:var(--danger)">*</span></label>
+      <input type="password" id="reg-pw" placeholder="8자리 이상">
+    </div>
+    <div class="form-group">
+      <label>개인정보 수집 및 이용 동의</label>
+      <div class="agree-box">
+        <strong>[개인정보 수집·이용 동의]</strong><br>
+        수집 항목: 이름, 닉네임, 이메일, 휴대폰번호, 회사명<br>
+        수집 목적: 서비스 이용, 랭킹 등록, 게임 기록 관리<br>
+        보유 기간: 서비스 이용 종료 후 1년<br><br>
+        귀하는 개인정보 수집·이용에 동의를 거부할 권리가 있으나, 필수항목 미동의 시 서비스 이용이 제한됩니다.
+      </div>
+      <label class="agree-check">
+        <input type="checkbox" id="agree-privacy"> [필수] 개인정보 수집 및 이용에 동의합니다
+      </label>
+      <div class="agree-box">
+        <strong>[서비스 이용약관]</strong><br>
+        본 서비스는 AML(자금세탁방지) 교육 목적으로 제공됩니다. 실제 금융거래 정보가 아닌 가상의 훈련 데이터를 사용합니다. 사용자는 본 서비스를 교육 목적으로만 사용하여야 합니다.<br><br>
+        <strong>[마케팅 정보 수신 동의]</strong><br>
+        신규 게임 업데이트, 교육 자료 등 유용한 정보를 이메일로 받아보실 수 있습니다.
+      </div>
+      <label class="agree-check">
+        <input type="checkbox" id="agree-terms"> [필수] 서비스 이용약관에 동의합니다
+      </label>
+      <label class="agree-check">
+        <input type="checkbox" id="agree-marketing"> [선택] 마케팅 정보 수신에 동의합니다
+      </label>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="doRegister()">회원가입 완료</button>
+  </div>
+</div>
+
+<!-- 관리자 로그인 -->
+<div class="modal-overlay" id="modal-admin-login">
+  <div class="modal">
+    <div class="modal-title">🔒 관리자 인증</div>
+    <button class="modal-close" onclick="closeModal('modal-admin-login')">✕</button>
+    <div class="form-group">
+      <label>관리자 비밀번호</label>
+      <input type="password" id="admin-pw" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doAdminLogin()">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="doAdminLogin()">인증</button>
+  </div>
+</div>
+
+<!-- 힌트 패널티 확인 -->
+<div class="modal-overlay" id="modal-hint-confirm">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title">⚠️ 힌트 열람 경고</div>
+    <p style="color:var(--text2);margin-bottom:20px;line-height:1.7;">
+      힌트를 열람하면 <strong style="color:var(--danger);">30초 페널티</strong>가 부여됩니다.<br>
+      (페널티 시간은 최종 기록에 합산됩니다)
+    </p>
+    <div style="display:flex;gap:12px;">
+      <button class="btn btn-secondary btn-block" onclick="closeModal('modal-hint-confirm')">취소</button>
+      <button class="btn btn-warning btn-block" onclick="confirmHint()">확인하고 힌트 보기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 힌트 내용 표시 -->
+<div class="modal-overlay" id="modal-hint-content">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title">💡 힌트</div>
+    <button class="modal-close" onclick="closeModal('modal-hint-content')">✕</button>
+    <div id="hint-content-area"></div>
+  </div>
+</div>
+
+<!-- KYC 다시보기 -->
+<div class="modal-overlay" id="modal-kyc-review">
+  <div class="modal" style="max-width:900px;width:95%;">
+    <div class="modal-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>👤 KYC 정보 재열람</span>
+      <span id="kyc-review-timer" style="font-family:var(--mono);color:var(--danger);font-size:24px;">30</span>
+    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">30초 후 자동으로 닫힙니다 (페널티 이미 적용됨)</p>
+    <div class="kyc-grid" id="kyc-review-grid"></div>
+  </div>
+</div>
+
+<!-- 포기 확인 -->
+<div class="modal-overlay" id="modal-giveup">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title" style="color:var(--danger);">🏳️ 게임 포기</div>
+    <p style="color:var(--text2);margin-bottom:20px;line-height:1.7;">
+      게임을 포기하시겠습니까?<br>
+      도전 기록에 포기로 남겨지며 랭킹에 등재되지 않습니다.
+    </p>
+    <div style="display:flex;gap:12px;">
+      <button class="btn btn-secondary btn-block" onclick="closeModal('modal-giveup')">계속하기</button>
+      <button class="btn btn-danger btn-block" onclick="doGiveUp()">포기하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 정답보기 확인 -->
+<div class="modal-overlay" id="modal-answer-reveal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-title" style="color:var(--warning);">📋 정답 보기</div>
+    <p style="color:var(--text2);margin-bottom:20px;line-height:1.7;">
+      정답을 확인하면 <strong style="color:var(--danger);">게임 실패</strong>로 처리되며<br>
+      랭킹에 등재되지 않습니다.
+    </p>
+    <div style="display:flex;gap:12px;">
+      <button class="btn btn-secondary btn-block" onclick="closeModal('modal-answer-reveal')">계속 도전</button>
+      <button class="btn btn-warning btn-block" onclick="doShowAnswer()">정답 확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 정답 틀림 피드백 -->
+<div id="wrong-feedback-area"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<!-- App Scripts -->
+<script src="js/firebase-config.js"></script>
+<script src="js/sample-data.js"></script>
+<script src="js/app.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
