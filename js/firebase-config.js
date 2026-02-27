@@ -2,13 +2,13 @@
 // Firebase 설정 - 미설정 시 로컬 모드로 자동 동작
 // ====================================================
 const FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDuCbLWxy7Y3509457_sx-j2tqnIdUNVEQ",
+  authDomain: "aml-game.firebaseapp.com",
+  databaseURL: "https://aml-game-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "aml-game",
+  storageBucket: "aml-game.firebasestorage.app",
+  messagingSenderId: "515626143488",
+  appId: "1:515626143488:web:d43b84d7d49f2cfcad6de5"
 };
 
 let FIREBASE_READY = false;
@@ -19,7 +19,7 @@ function verifyAdminPassword(input) { return input === atob("a2ljYzEyMzQ="); }
 
 // Firebase 초기화 시도
 try {
-  if (FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY") {
+  if (FIREBASE_CONFIG.apiKey !== "AIzaSyDuCbLWxy7Y3509457_sx-j2tqnIdUNVEQ") {
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
     auth = firebase.auth();
