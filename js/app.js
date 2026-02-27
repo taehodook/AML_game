@@ -16,42 +16,41 @@ const APP = {
   difficulty: null,
   industry: null,
 
-  // 난이도별 표시 KYC 필드 수
   DIFFICULTY_SETTINGS: {
-    low: { customerCount: 3, fieldCount: 13 },
-    mid: { customerCount: 5, fieldCount: 13 },
+    low:  { customerCount: 3, fieldCount: 13 },
+    mid:  { customerCount: 5, fieldCount: 13 },
     high: { customerCount: 8, fieldCount: 15 }
   },
 
   KYC_FIELDS: [
-    { key: 'name', label: '이름/상호명' },
-    { key: 'type', label: '고객유형' },
-    { key: 'rep_info', label: '대표자 정보' },
-    { key: 'birth_or_open', label: '생년월일/개업일' },
-    { key: 'nationality', label: '국적' },
-    { key: 'residence', label: '거주여부' },
-    { key: 'address', label: '주소/사업장소재지' },
-    { key: 'beneficial_owner', label: '실소유자 정보' },
-    { key: 'risk', label: '위험평가' },
-    { key: 'asset', label: '자산규모/자본금' },
+    { key: 'name',            label: '이름/상호명' },
+    { key: 'type',            label: '고객유형' },
+    { key: 'rep_info',        label: '대표자 정보' },
+    { key: 'birth_or_open',   label: '생년월일/개업일' },
+    { key: 'nationality',     label: '국적' },
+    { key: 'residence',       label: '거주여부' },
+    { key: 'address',         label: '주소/사업장소재지' },
+    { key: 'beneficial_owner',label: '실소유자 정보' },
+    { key: 'risk',            label: '위험평가' },
+    { key: 'asset',           label: '자산규모/자본금' },
     { key: 'job_or_business', label: '직업/업종' },
-    { key: 'purpose', label: '거래목적' },
-    { key: 'fund_source', label: '자금의 원천 및 출처' },
-    { key: 'join_date', label: '가입일' },
-    { key: 'kyc_date', label: 'KYC 완료일' }
+    { key: 'purpose',         label: '거래목적' },
+    { key: 'fund_source',     label: '자금의 원천 및 출처' },
+    { key: 'join_date',       label: '가입일' },
+    { key: 'kyc_date',        label: 'KYC 완료일' }
   ],
 
   INDUSTRY_LABELS: {
-    bank: '🏦 은행업',
+    bank:       '🏦 은행업',
     securities: '📈 증권업',
-    epayment: '💳 전자금융업',
-    crypto: '₿ 가상자산거래소',
-    casino: '🎰 카지노업'
+    epayment:   '💳 전자금융업',
+    crypto:     '₿ 가상자산거래소',
+    casino:     '🎰 카지노업'
   },
 
   DIFFICULTY_LABELS: {
-    low: '하 (쉬움)',
-    mid: '중 (보통)',
+    low:  '하 (쉬움)',
+    mid:  '중 (보통)',
     high: '고 (어려움)'
   },
 
@@ -87,68 +86,112 @@ const APP = {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   },
 
-  // =================== Firebase 데이터 초기화 ===================
+  // =================== 로컬 저장소 ===================
+  getLocalGames() {
+    // LOCAL_GAMES(sample-data.js) + localStorage 추가 게임 합산
+    const base = (typeof LOCAL_GAMES !== 'undefined') ? LOCAL_GAMES : [];
+    try {
+      const stored = JSON.parse(localStorage.getItem('aml_local_games') || '[]');
+      return [...base, ...stored];
+    } catch(e) { return base; }
+  },
+
+  saveLocalGame(gameData) {
+    try {
+      const stored = JSON.parse(localStorage.getItem('aml_local_games') || '[]');
+      stored.push({ ...gameData, id: 'local_' + Date.now() });
+      localStorage.setItem('aml_local_games', JSON.stringify(stored));
+      return true;
+    } catch(e) { return false; }
+  },
+
+  // =================== Firebase 초기화 (있을 때만) ===================
   async initSampleData() {
+    if (!FIREBASE_READY || !db) return; // Firebase 없으면 스킵
     try {
       const snap = await db.ref('games').once('value');
       if (!snap.exists()) {
         const updates = {};
-        for (const [key, game] of Object.entries(SAMPLE_GAMES)) {
-          const gameRef = db.ref('games').push();
-          updates[`games/${gameRef.key}`] = { ...game, createdAt: Date.now(), isActive: true };
-        }
-        await db.ref().update(updates);
-        console.log('샘플 데이터 초기화 완료');
+        const games = typeof LOCAL_GAMES !== 'undefined' ? LOCAL_GAMES : [];
+        games.forEach(game => {
+          const ref = db.ref('games').push();
+          updates[`games/${ref.key}`] = { ...game, createdAt: Date.now(), isActive: true };
+        });
+        if (Object.keys(updates).length) await db.ref().update(updates);
+        console.log('Firebase 샘플 데이터 초기화 완료');
       }
-    } catch (e) {
-      console.error('샘플 데이터 초기화 실패:', e);
+    } catch(e) {
+      console.warn('Firebase 초기화 실패 - 로컬 모드 사용:', e.message);
     }
   },
 
   // =================== 인증 ===================
   async register(name, nickname, email, phone, company, password) {
+    if (!FIREBASE_READY) return { success: false, error: 'Firebase가 설정되지 않았습니다.' };
     try {
       const cred = await auth.createUserWithEmailAndPassword(email, password);
-      await db.ref(`users/${cred.user.uid}`).set({
-        name, nickname, email, phone, company,
-        createdAt: Date.now(),
-        uid: cred.user.uid
-      });
+      await db.ref(`users/${cred.user.uid}`).set({ name, nickname, email, phone, company, createdAt: Date.now(), uid: cred.user.uid });
       return { success: true, user: cred.user };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
+    } catch(e) { return { success: false, error: e.message }; }
   },
 
   async login(email, password) {
+    if (!FIREBASE_READY) return { success: false, error: 'Firebase가 설정되지 않았습니다.' };
     try {
       const cred = await auth.signInWithEmailAndPassword(email, password);
       const snap = await db.ref(`users/${cred.user.uid}`).once('value');
       this.currentUser = { ...snap.val(), uid: cred.user.uid };
       return { success: true };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
+    } catch(e) { return { success: false, error: e.message }; }
   },
 
   async logout() {
-    await auth.signOut();
+    if (FIREBASE_READY) await auth.signOut();
     this.currentUser = null;
   },
 
-  // =================== 게임 로드 ===================
+  // =================== 게임 로드 (Firebase 우선, 없으면 로컬) ===================
   async loadGames() {
-    const snap = await db.ref('games').orderByChild('isActive').equalTo(true).once('value');
-    const games = [];
-    snap.forEach(child => {
-      games.push({ id: child.key, ...child.val() });
-    });
-    return games;
+    if (FIREBASE_READY && db) {
+      try {
+        const snap = await db.ref('games').orderByChild('isActive').equalTo(true).once('value');
+        const games = [];
+        snap.forEach(child => games.push({ id: child.key, ...child.val() }));
+        if (games.length > 0) return games;
+      } catch(e) {
+        console.warn('Firebase 게임 로드 실패 - 로컬로 전환:', e.message);
+      }
+    }
+    // 로컬 fallback
+    return this.getLocalGames().filter(g => g.isActive !== false);
   },
 
   async loadGame(gameId) {
-    const snap = await db.ref(`games/${gameId}`).once('value');
-    return snap.exists() ? { id: gameId, ...snap.val() } : null;
+    // 로컬 게임 먼저 확인
+    const local = this.getLocalGames().find(g => g.id === gameId);
+    if (local) return { ...local };
+
+    if (FIREBASE_READY && db) {
+      try {
+        const snap = await db.ref(`games/${gameId}`).once('value');
+        return snap.exists() ? { id: gameId, ...snap.val() } : null;
+      } catch(e) { return null; }
+    }
+    return null;
+  },
+
+  // =================== 게임 저장 (Firebase or 로컬) ===================
+  async saveGame(gameData) {
+    if (FIREBASE_READY && db) {
+      try {
+        await db.ref('games').push(gameData);
+        return { success: true, mode: 'firebase' };
+      } catch(e) {
+        console.warn('Firebase 저장 실패 - 로컬 저장:', e.message);
+      }
+    }
+    const ok = this.saveLocalGame(gameData);
+    return { success: ok, mode: 'local' };
   },
 
   // =================== KYC 뷰 생성 ===================
@@ -158,153 +201,135 @@ const APP = {
     const fieldCount = settings.fieldCount;
     const fields = this.KYC_FIELDS.slice(0, fieldCount);
 
-    return customers.map(c => {
-      const rows = {};
-      fields.forEach(f => {
-        if (f.key === 'rep_info') {
-          if (c.rep_name) {
-            rows[f.key] = `${c.rep_name} / ${c.rep_birth || '-'} / ${c.rep_nationality || '-'}`;
-          } else {
-            rows[f.key] = '-';
-          }
-        } else if (f.key === 'beneficial_owner') {
-          const bo = c.beneficial_owner;
-          if (bo) {
-            rows[f.key] = `${bo.name} / ${bo.nationality} / ${bo.birth} / 지분율: ${bo.share}`;
-          } else {
-            rows[f.key] = '-';
-          }
-        } else {
-          rows[f.key] = c[f.key] || '-';
-        }
-      });
-      return { id: c.id, name: c.name, type: c.type, rows, fields };
-    });
+    return customers.map((c, ci) => {
+      const repInfo = (c.rep_name || c.rep_birth || c.rep_nationality)
+        ? `${c.rep_name || '-'} / ${c.rep_birth || '-'} / ${c.rep_nationality || '-'}`
+        : '-';
+      const boVal = c.beneficial_owner
+        ? `${c.beneficial_owner.name || '-'} (${c.beneficial_owner.nationality || '-'}, ${c.beneficial_owner.birth || '-'}, 지분 ${c.beneficial_owner.share || '-'})`
+        : '-';
+
+      const fieldValues = {
+        name:             c.name || '-',
+        type:             c.type || '-',
+        rep_info:         repInfo,
+        birth_or_open:    c.birth_or_open || '-',
+        nationality:      c.nationality || '-',
+        residence:        c.residence || '-',
+        address:          c.address || '-',
+        beneficial_owner: boVal,
+        risk:             c.risk || '-',
+        asset:            c.asset || '-',
+        job_or_business:  c.job_or_business || '-',
+        purpose:          c.purpose || '-',
+        fund_source:      c.fund_source || '-',
+        join_date:        c.join_date || '-',
+        kyc_date:         c.kyc_date || '-'
+      };
+
+      const riskClass = c.risk === '고' ? 'risk-high' : c.risk === '중' ? 'risk-mid' : 'risk-low';
+      const rows = fields.map(f => `
+        <tr>
+          <td class="kyc-field-label">${f.label}</td>
+          <td class="kyc-field-value ${f.key === 'risk' ? riskClass : ''}">${fieldValues[f.key]}</td>
+        </tr>`).join('');
+
+      return `
+        <div class="kyc-card">
+          <div class="kyc-card-header">
+            <span class="kyc-customer-num">고객 #${ci + 1}</span>
+            <span class="kyc-customer-name">${c.name || '알 수 없음'}</span>
+            <span class="badge ${c.risk === '고' ? 'badge-danger' : c.risk === '중' ? 'badge-warning' : 'badge-success'}">${c.risk || '-'}위험</span>
+          </div>
+          <table class="kyc-table"><tbody>${rows}</tbody></table>
+        </div>`;
+    }).join('');
   },
 
-  // =================== 거래내역 테이블 헤더 ===================
-  getTransactionHeaders(industry) {
-    const headers = {
-      bank: ['거래일시', '거래시간', '거래내용', '거래자명', '지급금액', '입금금액', '잔액', '적요'],
-      securities: ['거래일시', '거래시간', '거래내용', '거래자명', '거래금액', '잔액', '주식수', '주식명', '적요'],
-      epayment: ['거래일시', '거래시간', '거래내용', '거래자명', '결제금액', '거래구분', '카드할부', '비고'],
-      crypto: ['거래일시', '거래시간', '거래내용', '거래자명', '거래금액', '잔액', '거래수', '코인명', '적요'],
-      casino: ['거래일시', '거래시간', '거래내용', '거래자명', '거래금액', '거래수', '칩단위', '적요']
-    };
-    return headers[industry] || headers.bank;
+  // =================== 거래내역 테이블 ===================
+  buildTxTable(transactions) {
+    if (!transactions || !transactions.length) return '<p style="color:var(--text2);">거래내역이 없습니다.</p>';
+    const rows = transactions.map(tx => {
+      const payStr    = tx.pay      ? this.formatNumber(tx.pay)     : (tx.amount ? this.formatNumber(tx.amount) : '-');
+      const recvStr   = tx.receive  ? this.formatNumber(tx.receive) : '-';
+      const balStr    = tx.balance  ? this.formatNumber(tx.balance) : '-';
+      const qtyStr    = tx.stock_qty ? tx.stock_qty.toLocaleString() + '주' : (tx.qty ? tx.qty + (tx.coin ? ' ' + tx.coin : '') : '-');
+      return `<tr>
+        <td>${tx.date || '-'}</td>
+        <td>${tx.time || '-'}</td>
+        <td>${tx.content || '-'}</td>
+        <td>${tx.trader || '-'}</td>
+        <td style="color:var(--danger);font-family:var(--mono);">${payStr !== '-' && !tx.receive ? payStr : '-'}</td>
+        <td style="color:var(--success);font-family:var(--mono);">${recvStr !== '-' ? recvStr : (tx.receive ? this.formatNumber(tx.receive) : '-')}</td>
+        <td style="font-family:var(--mono);">${tx.stock_name || qtyStr}</td>
+        <td style="color:var(--text2);font-size:12px;">${tx.note || ''}</td>
+      </tr>`;
+    }).join('');
+
+    return `
+      <div class="table-wrapper">
+        <table>
+          <thead><tr>
+            <th>날짜</th><th>시간</th><th>거래유형</th><th>거래자</th>
+            <th>출금/지출</th><th>입금/수취</th><th>종목/수량</th><th>비고</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
   },
 
-  buildTransactionRow(tx, industry) {
-    const base = [tx.date, tx.time, tx.content, tx.trader];
-    if (industry === 'bank') {
-      return [...base,
-        tx.pay ? this.formatNumber(tx.pay) : '-',
-        tx.receive ? this.formatNumber(tx.receive) : '-',
-        tx.balance ? this.formatNumber(tx.balance) : '-',
-        tx.note || '-'
-      ];
-    } else if (industry === 'securities') {
-      return [...base,
-        this.formatNumber(tx.amount),
-        this.formatNumber(tx.balance),
-        tx.stock_qty ? tx.stock_qty.toLocaleString() + '주' : '-',
-        tx.stock_name || '-',
-        tx.note || '-'
-      ];
-    } else if (industry === 'epayment') {
-      return [...base,
-        this.formatNumber(tx.amount),
-        tx.type || '-',
-        tx.installment || '-',
-        tx.note || '-'
-      ];
-    } else if (industry === 'crypto') {
-      return [...base,
-        this.formatNumber(tx.amount),
-        tx.balance ? this.formatNumber(tx.balance) : '-',
-        tx.qty ? tx.qty.toLocaleString() : '-',
-        tx.coin || '-',
-        tx.note || '-'
-      ];
-    } else if (industry === 'casino') {
-      return [...base,
-        this.formatNumber(tx.amount),
-        tx.qty ? tx.qty.toLocaleString() : '-',
-        tx.chip || '-',
-        tx.note || '-'
-      ];
+  // =================== 정답 검증 ===================
+  validateAnswer(userInput, gameData) {
+    if (!gameData?.answer) return { correct: false, score: 0 };
+    const ans = gameData.answer;
+    const input = userInput.toLowerCase().replace(/\s/g, '');
+    const criminal = (ans.criminal || '').toLowerCase().replace(/\s/g, '');
+
+    // 범인 이름 매칭 (쉼표 분리 다중 범인 처리)
+    const criminals = criminal.split(/[,]+/);
+    const nameMatch = criminals.some(c => input.includes(c.trim()) || c.trim().includes(input));
+
+    // 키워드 매칭
+    const keywords = ans.keywords || [];
+    const matchedKeywords = keywords.filter(kw =>
+      input.includes(kw.toLowerCase().replace(/\s/g, ''))
+    );
+
+    if (nameMatch || matchedKeywords.length >= 3) {
+      return { correct: true, matchedKeywords, score: 100 + matchedKeywords.length * 10 };
     }
-    return base;
+    return { correct: false, matchedKeywords, score: 0 };
   },
 
   // =================== 랭킹 ===================
-  async saveRanking(gameId, time, submitCount, difficulty, nickname, name) {
-    const month = this.getCurrentMonth();
-    const entry = {
-      gameId, time, submitCount, difficulty,
-      nickname,
-      maskedName: this.maskName(name),
-      month,
-      createdAt: Date.now(),
-      uid: this.currentUser?.uid || 'anonymous'
-    };
-    await db.ref('rankings').push(entry);
-    await db.ref(`userStats/${this.currentUser?.uid}/history`).push({
-      gameId, time, submitCount, difficulty, month, createdAt: Date.now()
-    });
+  async saveRanking(data) {
+    if (FIREBASE_READY && db) {
+      try {
+        await db.ref('rankings').push({ ...data, createdAt: Date.now() });
+        return;
+      } catch(e) { console.warn('Firebase 랭킹 저장 실패'); }
+    }
+    try {
+      const list = JSON.parse(localStorage.getItem('aml_rankings') || '[]');
+      list.push({ ...data, createdAt: Date.now() });
+      list.sort((a, b) => a.time - b.time);
+      localStorage.setItem('aml_rankings', JSON.stringify(list.slice(0, 100)));
+    } catch(e) {}
   },
 
   async loadRankings(month) {
-    const snap = await db.ref('rankings').orderByChild('month').equalTo(month).once('value');
-    const list = [];
-    snap.forEach(c => list.push({ id: c.key, ...c.val() }));
-    // 정렬: 시간 asc → 제출횟수 asc → createdAt asc
-    list.sort((a, b) => {
-      if (a.time !== b.time) return a.time - b.time;
-      if (a.submitCount !== b.submitCount) return a.submitCount - b.submitCount;
-      return a.createdAt - b.createdAt;
-    });
-    return list;
-  },
-
-  // =================== 답안 검증 ===================
-  checkAnswer(gameData, criminal, reasons) {
-    const answerCriminal = gameData.answer.criminal.toLowerCase();
-    const inputCriminal = criminal.trim().toLowerCase();
-    const criminalMatch = answerCriminal.includes(inputCriminal) || inputCriminal.includes(answerCriminal.split(',')[0].trim());
-
-    const keywords = gameData.answer.keywords;
-    const allReasonText = Object.values(reasons).join(' ');
-    let matchedKeywords = keywords.filter(kw =>
-      allReasonText.includes(kw) || kw.split(/[,\s]+/).some(part => allReasonText.includes(part))
-    );
-
-    return {
-      criminalMatch,
-      keywordMatch: matchedKeywords.length >= 3,
-      matchedCount: matchedKeywords.length,
-      matchedKeywords
-    };
-  },
-
-  // =================== 도전 기록 저장 ===================
-  async saveChallengeRecord(gameId, type, data) {
-    if (!this.currentUser) return;
-    await db.ref(`challenges/${this.currentUser.uid}`).push({
-      gameId, type, ...data, createdAt: Date.now()
-    });
+    if (FIREBASE_READY && db) {
+      try {
+        const snap = await db.ref('rankings').orderByChild('month').equalTo(month).once('value');
+        const list = [];
+        snap.forEach(c => list.push({ id: c.key, ...c.val() }));
+        list.sort((a, b) => a.time - b.time);
+        return list;
+      } catch(e) { console.warn('Firebase 랭킹 로드 실패'); }
+    }
+    try {
+      const list = JSON.parse(localStorage.getItem('aml_rankings') || '[]');
+      return list.filter(r => r.month === month);
+    } catch(e) { return []; }
   }
 };
-
-// Auth 상태 감지
-auth.onAuthStateChanged(async (user) => {
-  if (user) {
-    const snap = await db.ref(`users/${user.uid}`).once('value');
-    if (snap.exists()) {
-      APP.currentUser = { ...snap.val(), uid: user.uid };
-    }
-  } else {
-    APP.currentUser = null;
-  }
-  if (window.onAuthStateReady) window.onAuthStateReady(APP.currentUser);
-});

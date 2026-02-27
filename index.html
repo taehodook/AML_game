@@ -270,21 +270,33 @@
 
     <!-- 게임 생성 -->
     <div class="admin-pane" id="tab-create">
-      <h3 style="margin-bottom:16px;">새 게임 생성</h3>
+      <h3 style="margin-bottom:4px;">새 게임 생성</h3>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">Firebase 미설정 시 로컬(브라우저)에 저장됩니다.</p>
       <div class="card">
+
+        <!-- ① 기본 정보 -->
+        <h4 style="margin-bottom:12px;color:var(--accent);">① 기본 정보</h4>
         <div class="form-group">
-          <label>게임 제목</label>
+          <label>게임 제목 <span style="color:var(--danger);">*</span></label>
           <input type="text" id="admin-game-title" placeholder="예) 은행업 - 해외 자금세탁 사건 #2">
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>업종</label>
             <select id="admin-game-industry">
-              <option value="bank">은행업</option>
-              <option value="securities">증권업</option>
-              <option value="epayment">전자금융업</option>
-              <option value="crypto">가상자산거래소</option>
-              <option value="casino">카지노업</option>
+              <option value="bank">🏦 은행업</option>
+              <option value="securities">📈 증권업</option>
+              <option value="epayment">💳 전자금융업</option>
+              <option value="crypto">₿ 가상자산거래소</option>
+              <option value="casino">🎰 카지노업</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>난이도</label>
+            <select id="admin-game-difficulty">
+              <option value="low">하 (쉬움) - KYC 3명</option>
+              <option value="mid">중 (보통) - KYC 5명</option>
+              <option value="high" selected>고 (어려움) - KYC 8명</option>
             </select>
           </div>
           <div class="form-group">
@@ -295,59 +307,131 @@
             </select>
           </div>
         </div>
-        <div class="form-group">
-          <label>KYC 정보 (JSON 형식 직접 입력 또는 엑셀 업로드)</label>
-          <textarea id="admin-kyc-json" rows="6" placeholder='[{"id":"C001","name":"홍길동","type":"개인",...}]'></textarea>
-          <div class="form-hint">JSON 배열로 입력하거나 아래 엑셀 파일을 업로드하세요</div>
-        </div>
-        <div class="form-group">
-          <label>KYC 엑셀 업로드 (.xlsx)</label>
-          <input type="file" id="admin-kyc-file" accept=".xlsx,.xls,.csv">
-        </div>
-        <div class="form-group">
-          <label>거래내역 (JSON 형식)</label>
-          <textarea id="admin-tx-json" rows="6" placeholder='[{"date":"2024-03-01","time":"09:00",...}]'></textarea>
-        </div>
-        <div class="form-group">
-          <label>거래내역 엑셀 업로드</label>
-          <input type="file" id="admin-tx-file" accept=".xlsx,.xls,.csv">
-        </div>
+
         <div class="divider"></div>
-        <h4 style="margin-bottom:12px;">정답 및 힌트</h4>
-        <div class="form-group">
-          <label>정답 범인 (이름/상호명)</label>
-          <input type="text" id="admin-answer-criminal" placeholder="정답 범인">
+
+        <!-- ② KYC 정보 -->
+        <h4 style="margin-bottom:8px;color:var(--accent);">② KYC 고객 정보 <span style="color:var(--danger);">*</span></h4>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;color:var(--text2);">
+          📌 <strong>엑셀 업로드 방법:</strong> 샘플 파일을 다운로드 → 양식에 맞게 작성 → 업로드<br>
+          💡 업로드 시 아래 JSON 란에 자동으로 채워집니다.
+        </div>
+        <div class="form-row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="downloadSampleExcel('kyc')">
+            📥 KYC 샘플 엑셀 다운로드
+          </button>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
+            📤 KYC 엑셀 업로드
+            <input type="file" id="admin-kyc-file" accept=".xlsx,.xls,.csv" style="display:none;">
+          </label>
         </div>
         <div class="form-group">
-          <label>키워드 (쉼표로 구분, 최소 5개)</label>
-          <input type="text" id="admin-answer-keywords" placeholder="키워드1,키워드2,키워드3,...">
+          <label>KYC 정보 JSON (엑셀 업로드 시 자동 입력)</label>
+          <textarea id="admin-kyc-json" rows="5" placeholder='엑셀을 업로드하거나 직접 JSON을 입력하세요&#10;[{"id":"C001","name":"홍길동","type":"개인","nationality":"대한민국","risk":"저",...}]'></textarea>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- ③ 거래내역 -->
+        <h4 style="margin-bottom:8px;color:var(--accent);">③ 거래내역 <span style="color:var(--danger);">*</span></h4>
+        <div class="form-row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="downloadSampleExcel('tx')">
+            📥 거래내역 샘플 엑셀 다운로드
+          </button>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
+            📤 거래내역 엑셀 업로드
+            <input type="file" id="admin-tx-file" accept=".xlsx,.xls,.csv" style="display:none;">
+          </label>
         </div>
         <div class="form-group">
-          <label>고객 특성</label>
-          <input type="text" id="admin-answer-trait" placeholder="정답 - 고객 특성">
+          <label>거래내역 JSON (엑셀 업로드 시 자동 입력)</label>
+          <textarea id="admin-tx-json" rows="5" placeholder='[{"date":"2024-03-01","time":"09:15","content":"전자금융","trader":"홍길동","receive":48000000,"note":"해외송금수취"}]'></textarea>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- ④ 정답 설정 -->
+        <h4 style="margin-bottom:12px;color:var(--accent);">④ 정답 설정</h4>
+        <div class="form-group">
+          <label>정답 범인 (이름/상호명) <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="admin-answer-criminal" placeholder="예) 홍길동, (주)테스트 — 다중 범인은 쉼표로 구분">
         </div>
         <div class="form-group">
-          <label>의심거래 유형</label>
-          <input type="text" id="admin-answer-type" placeholder="정답 - 의심거래 유형">
+          <label>정답 키워드 (쉼표 구분, 최소 5개) <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="admin-answer-keywords" placeholder="스머핑,CTR회피,현금분산입금,무직자,동일계좌집중">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>고객 특성</label>
+            <input type="text" id="admin-answer-trait" placeholder="예) 무직, 고위험, 외국인 비거주자">
+          </div>
+          <div class="form-group">
+            <label>의심거래 유형</label>
+            <input type="text" id="admin-answer-type" placeholder="예) 스머핑, TBML, 보이스피싱">
+          </div>
         </div>
         <div class="form-group">
           <label>결정적 사유</label>
-          <textarea id="admin-answer-reason" rows="3" placeholder="정답 - 결정적 사유"></textarea>
+          <textarea id="admin-answer-reason" rows="3" placeholder="예) 3인 동시 980만원 현금입금→동일 계좌 즉시이체 2일 반복"></textarea>
         </div>
         <div class="form-group">
-          <label>게임 의도 (출제 의도)</label>
+          <label>출제 의도</label>
           <textarea id="admin-intent" rows="2" placeholder="이 게임을 통해 훈련하고자 하는 내용"></textarea>
         </div>
+
         <div class="divider"></div>
-        <h4 style="margin-bottom:12px;">힌트 단서</h4>
-        <div class="form-group">
-          <label>힌트1 - 제목</label>
-          <input type="text" id="admin-hint1-title" placeholder="언론기사 / KOFIU 자료 제목">
+
+        <!-- ⑤ 힌트 단서 -->
+        <h4 style="margin-bottom:4px;color:var(--accent);">⑤ 힌트 단서</h4>
+        <p style="color:var(--text2);font-size:13px;margin-bottom:12px;">힌트 사용 시 +60초 패널티. 이미지(JPG/PNG) 또는 PDF 첨부 가능 (최대 2MB)</p>
+
+        <!-- 힌트 1 -->
+        <div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;">
+          <div style="font-weight:700;margin-bottom:10px;color:var(--text1);">💡 힌트 1</div>
+          <div class="form-group">
+            <label>제목</label>
+            <input type="text" id="admin-hint1-title" placeholder="예) KOFIU 2024 - 스머핑 자금세탁 유형 분석">
+          </div>
+          <div class="form-group">
+            <label>내용</label>
+            <textarea id="admin-hint1-content" rows="4" placeholder="힌트 내용을 작성하세요 (자금세탁 패턴, 특징 등)"></textarea>
+          </div>
+          <div class="form-group">
+            <label>📎 이미지/PDF 첨부 (선택)</label>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
+                파일 선택 (이미지·PDF, 최대 2MB)
+                <input type="file" id="hint-file-h1" accept="image/*,.pdf" style="display:none;">
+              </label>
+              <span style="font-size:12px;color:var(--text2);">JPG, PNG, GIF, WEBP, PDF 지원</span>
+            </div>
+            <div id="hint-file-preview-h1"></div>
+          </div>
         </div>
-        <div class="form-group">
-          <label>힌트1 - 내용</label>
-          <textarea id="admin-hint1-content" rows="4" placeholder="힌트 내용 직접 작성"></textarea>
+
+        <!-- 힌트 2 -->
+        <div style="border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;">
+          <div style="font-weight:700;margin-bottom:10px;color:var(--text1);">💡 힌트 2 (선택)</div>
+          <div class="form-group">
+            <label>제목</label>
+            <input type="text" id="admin-hint2-title" placeholder="예) 경찰청 수사 사례 - 대포통장 패턴">
+          </div>
+          <div class="form-group">
+            <label>내용</label>
+            <textarea id="admin-hint2-content" rows="4" placeholder="두 번째 힌트 내용 (선택 입력)"></textarea>
+          </div>
+          <div class="form-group">
+            <label>📎 이미지/PDF 첨부 (선택)</label>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
+                파일 선택 (이미지·PDF, 최대 2MB)
+                <input type="file" id="hint-file-h2" accept="image/*,.pdf" style="display:none;">
+              </label>
+            </div>
+            <div id="hint-file-preview-h2"></div>
+          </div>
         </div>
+
         <div class="form-row" style="margin-bottom:16px;">
           <button class="btn btn-secondary btn-sm" onclick="previewGame()">👁️ 미리보기</button>
           <button class="btn btn-primary" onclick="saveGame()">💾 게임 저장</button>
@@ -486,39 +570,51 @@
   </div>
 </div>
 
-<!-- 힌트 패널티 확인 -->
+<!-- 힌트 사용 확인 -->
 <div class="modal-overlay" id="modal-hint-confirm">
-  <div class="modal" style="max-width:400px;">
-    <div class="modal-title">⚠️ 힌트 열람 경고</div>
-    <p style="color:var(--text2);margin-bottom:20px;line-height:1.7;">
-      힌트를 열람하면 <strong style="color:var(--danger);">30초 페널티</strong>가 부여됩니다.<br>
-      (페널티 시간은 최종 기록에 합산됩니다)
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title" id="hint-confirm-title">⚠️ 힌트 열람</div>
+    <p style="color:var(--text2);margin-bottom:20px;line-height:1.7;" id="hint-confirm-desc">
+      이 힌트를 사용하면 +60초 패널티가 추가됩니다.
     </p>
     <div style="display:flex;gap:12px;">
       <button class="btn btn-secondary btn-block" onclick="closeModal('modal-hint-confirm')">취소</button>
-      <button class="btn btn-warning btn-block" onclick="confirmHint()">확인하고 힌트 보기</button>
+      <button class="btn btn-warning btn-block" onclick="confirmUseHint()">확인하고 힌트 보기</button>
     </div>
   </div>
 </div>
 
-<!-- 힌트 내용 표시 -->
-<div class="modal-overlay" id="modal-hint-content">
-  <div class="modal" style="max-width:600px;">
-    <div class="modal-title">💡 힌트</div>
-    <button class="modal-close" onclick="closeModal('modal-hint-content')">✕</button>
-    <div id="hint-content-area"></div>
+<!-- 힌트 내용 표시 (이미지/PDF 첨부 포함) -->
+<div class="modal-overlay" id="modal-hint-view">
+  <div class="modal" style="max-width:760px;width:96%;max-height:90vh;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-shrink:0;">
+      <div class="modal-title" id="hint-view-title" style="margin:0;">💡 힌트</div>
+      <button class="modal-close" style="position:static;" onclick="closeModal('modal-hint-view')">✕</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding-right:4px;">
+      <div style="white-space:pre-wrap;line-height:1.8;color:var(--text1);font-size:14px;background:var(--surface2);border-radius:8px;padding:14px;margin-bottom:4px;" id="hint-view-content"></div>
+      <div id="hint-view-attachment"></div>
+    </div>
+    <div style="margin-top:14px;text-align:right;flex-shrink:0;border-top:1px solid var(--border);padding-top:12px;">
+      <button class="btn btn-primary btn-sm" onclick="closeModal('modal-hint-view')">닫기</button>
+    </div>
   </div>
 </div>
 
-<!-- KYC 다시보기 -->
-<div class="modal-overlay" id="modal-kyc-review">
-  <div class="modal" style="max-width:900px;width:95%;">
+<!-- KYC 재열람 -->
+<div class="modal-overlay" id="modal-hint-kyc">
+  <div class="modal" style="max-width:960px;width:96%;">
     <div class="modal-title" style="display:flex;align-items:center;justify-content:space-between;">
       <span>👤 KYC 정보 재열람</span>
-      <span id="kyc-review-timer" style="font-family:var(--mono);color:var(--danger);font-size:24px;">30</span>
+      <span style="font-family:var(--mono);color:var(--danger);font-size:24px;">
+        <span id="hint-kyc-timer-val">30</span>초
+      </span>
     </div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">30초 후 자동으로 닫힙니다 (페널티 이미 적용됨)</p>
-    <div class="kyc-grid" id="kyc-review-grid"></div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">30초 후 자동으로 닫힙니다 (패널티 없음)</p>
+    <div class="kyc-grid" id="hint-kyc-content"></div>
+    <div style="margin-top:16px;text-align:right;">
+      <button class="btn btn-secondary btn-sm" onclick="closeKycReview()">닫기</button>
+    </div>
   </div>
 </div>
 
@@ -560,10 +656,25 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
+<!-- SheetJS (엑셀 업로드/다운로드) - 미리 로드 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+  onerror="console.warn('SheetJS CDN 1 실패, 백업 로드 시도')"></script>
+
 <!-- App Scripts -->
 <script src="js/firebase-config.js"></script>
 <script src="js/sample-data.js"></script>
 <script src="js/app.js"></script>
 <script src="js/ui.js"></script>
+
+<script>
+// SheetJS 백업 로드 (CDN 실패 시)
+if (typeof XLSX === 'undefined') {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js';
+  s.onload = () => console.log('SheetJS 백업 CDN 로드 성공');
+  s.onerror = () => console.warn('SheetJS 로드 실패 - 오프라인 환경에서는 엑셀 기능 불가');
+  document.head.appendChild(s);
+}
+</script>
 </body>
 </html>
