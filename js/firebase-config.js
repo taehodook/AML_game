@@ -5,7 +5,7 @@ const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDuCbLWxy7Y3509457_sx-j2tqnIdUNVEQ",
   authDomain: "aml-game.firebaseapp.com",
   databaseURL: "https://aml-game-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "aml-game",
+  projectId: "Yaml-game",
   storageBucket: "aml-game.firebasestorage.app",
   messagingSenderId: "515626143488",
   appId: "1:515626143488:web:d43b84d7d49f2cfcad6de5"
