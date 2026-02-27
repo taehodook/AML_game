@@ -153,22 +153,19 @@ function showKycPage(gameData) {
   clearInterval(APP.kycViewTimer);
 
   APP.kycTimeLeft = 30;
-  document.getElementById('kyc-timer-val').textContent = APP.kycTimeLeft;
+  document.getElementById('kyc-timer').textContent = APP.kycTimeLeft;
 
   const kycHtml = APP.buildKycView(gameData.kyc_list || [], APP.difficulty || 'high');
-  document.getElementById('kyc-content-area').innerHTML = kycHtml;
+  document.getElementById('kyc-grid').innerHTML = kycHtml;
 
   document.getElementById('kyc-game-title').textContent = gameData.title || '게임';
-  document.getElementById('kyc-difficulty-badge').innerHTML =
-    `<span class="badge ${APP.difficulty === 'high' ? 'badge-danger' : APP.difficulty === 'mid' ? 'badge-warning' : 'badge-success'}">
-      ${APP.DIFFICULTY_LABELS[APP.difficulty] || APP.difficulty}
-    </span>`;
+  document.getElementById('kyc-diff-badge').textContent = APP.DIFFICULTY_LABELS[APP.difficulty] || APP.difficulty;
 
   showPage('page-kyc');
 
   APP.kycViewTimer = setInterval(() => {
     APP.kycTimeLeft--;
-    document.getElementById('kyc-timer-val').textContent = APP.kycTimeLeft;
+    document.getElementById('kyc-timer').textContent = APP.kycTimeLeft;
     if (APP.kycTimeLeft <= 0) {
       clearInterval(APP.kycViewTimer);
       showGamePage(gameData);
@@ -183,21 +180,54 @@ function skipKycTimer() {
 
 // =================== 게임 페이지 ===================
 function showGamePage(gameData) {
-  document.getElementById('game-title-display').textContent = gameData.title || '게임';
-  document.getElementById('game-industry-badge').textContent = APP.INDUSTRY_LABELS[gameData.industry] || gameData.industry;
+  document.getElementById('game-title-header').textContent = gameData.title || '게임';
+  document.getElementById('game-badges').innerHTML =
+    `<span class="badge badge-info">${APP.INDUSTRY_LABELS[gameData.industry] || gameData.industry}</span>` +
+    `<span class="badge ${APP.difficulty === 'high' ? 'badge-danger' : APP.difficulty === 'mid' ? 'badge-warning' : 'badge-success'}" style="margin-left:6px;">${APP.DIFFICULTY_LABELS[APP.difficulty] || ''}</span>`;
 
-  // 거래내역
-  const txHtml = APP.buildTxTable(gameData.transactions || []);
-  document.getElementById('tx-table-area').innerHTML = txHtml;
+  // 거래내역 - HTML 구조(tx-head/tx-body)에 맞게 삽입
+  const txs = gameData.transactions || [];
+  document.getElementById('tx-count-badge').textContent = txs.length + '건';
+  document.getElementById('tx-head').innerHTML = `<tr>
+    <th>날짜</th><th>시간</th><th>거래유형</th><th>거래자</th>
+    <th>출금/지출</th><th>입금/수취</th><th>종목/수량</th><th>비고</th>
+  </tr>`;
+  document.getElementById('tx-body').innerHTML = txs.map(tx => {
+    const pay  = tx.pay    ? APP.formatNumber(tx.pay)    : (tx.amount && !tx.receive ? APP.formatNumber(tx.amount) : '-');
+    const recv = tx.receive? APP.formatNumber(tx.receive): '-';
+    const qty  = tx.stock_qty ? tx.stock_qty.toLocaleString()+'주'
+               : tx.qty ? tx.qty + (tx.coin?' '+tx.coin:'')
+               : '-';
+    const qty2 = tx.stock_name || qty;
+    return `<tr>
+      <td>${tx.date||'-'}</td>
+      <td>${tx.time||'-'}</td>
+      <td>${tx.content||'-'}</td>
+      <td>${tx.trader||'-'}</td>
+      <td style="color:var(--danger);font-family:var(--mono);">${pay!=='-'&&!tx.receive?pay:'-'}</td>
+      <td style="color:var(--success);font-family:var(--mono);">${recv}</td>
+      <td style="font-family:var(--mono);">${qty2}</td>
+      <td style="color:var(--text2);font-size:12px;">${tx.note||''}</td>
+    </tr>`;
+  }).join('');
 
-  // 힌트 버튼
-  const hintsArea = document.getElementById('hints-area');
-  const hints = gameData.hints || [];
-  hintsArea.innerHTML = hints.map((h, i) => `
-    <button class="btn btn-secondary btn-sm hint-btn" id="hint-btn-${i}" onclick="requestHint(${i})">
-      💡 힌트 ${i + 1}: ${h.title || (h.type === 'kyc_review' ? 'KYC 재열람' : '단서')}
-    </button>
-  `).join('');
+  // 힌트: HTML에 requestHint(0), requestHint(1) 하드코딩돼 있어 동적 생성 불필요
+  // hint-btn-0 / hint-btn-1 클래스 초기화만 수행
+  document.querySelectorAll('.hint-btn').forEach(btn => btn.classList.remove('hint-used'));
+
+  // 답안 입력란 초기화
+  ['answer-criminal','answer-trait','answer-type','answer-reason'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const fb = document.getElementById('answer-feedback');
+  if (fb) { fb.style.display = 'none'; fb.innerHTML = ''; }
+  const sc = document.getElementById('submit-count-display');
+  if (sc) sc.textContent = '0';
+
+  // 패널티 배너 초기화
+  const pb = document.getElementById('penalty-banner');
+  if (pb) pb.style.display = 'none';
 
   showPage('page-game');
   startTimer();
@@ -216,8 +246,15 @@ function startTimer() {
 }
 
 function updateTimerDisplay() {
-  const el = document.getElementById('game-timer');
+  const el = document.getElementById('game-elapsed');
   if (el) el.textContent = APP.formatTime(APP.elapsedSeconds);
+  // 패널티 배너 갱신
+  const pb = document.getElementById('penalty-banner');
+  const pt = document.getElementById('penalty-time');
+  if (pb && pt && APP.penaltySeconds > 0) {
+    pb.style.display = 'block';
+    pt.textContent = APP.penaltySeconds;
+  }
 }
 
 // =================== 힌트 ===================
@@ -373,27 +410,55 @@ function openPdfFullscreen(src, name) {
 
 // =================== 정답 제출 ===================
 async function submitAnswer() {
-  const input = document.getElementById('answer-input').value.trim();
-  if (!input) { showToast('정답을 입력해주세요.', 'warning'); return; }
+  // HTML은 answer-criminal, answer-trait, answer-type, answer-reason 4개 필드 구조
+  const criminal = (document.getElementById('answer-criminal')?.value || '').trim();
+  const trait    = (document.getElementById('answer-trait')?.value    || '').trim();
+  const type     = (document.getElementById('answer-type')?.value     || '').trim();
+  const reason   = (document.getElementById('answer-reason')?.value   || '').trim();
+
+  if (!criminal) { showToast('범인 이름 또는 상호명을 입력해주세요.', 'warning'); return; }
+
+  // 검증용 통합 입력 (범인명 + 키워드 힌트로 활용될 수 있는 텍스트 합산)
+  const input = [criminal, trait, type, reason].join(' ');
 
   APP.submitCount++;
+  // 제출 횟수 업데이트
+  const sc = document.getElementById('submit-count-display');
+  if (sc) sc.textContent = APP.submitCount;
+
   const result = APP.validateAnswer(input, APP.currentGameData);
 
   if (result.correct) {
     clearInterval(APP.timerInterval);
     const finalTime = APP.elapsedSeconds;
 
-    // 결과 표시
+    // 결과 페이지 구성
+    const ans = APP.currentGameData.answer;
     document.getElementById('result-time').textContent = APP.formatTime(finalTime);
     document.getElementById('result-submit-count').textContent = APP.submitCount + '회';
     document.getElementById('result-hint-count').textContent = hintUsedCount + '회';
-    document.getElementById('result-criminal').textContent = APP.currentGameData.answer.criminal || '-';
-    document.getElementById('result-type').textContent = APP.currentGameData.answer.suspicious_type || '-';
-    document.getElementById('result-reason').textContent = APP.currentGameData.answer.key_reason || '-';
+    document.getElementById('result-difficulty').textContent = APP.DIFFICULTY_LABELS[APP.difficulty] || APP.difficulty;
+
+    // 정답 공개 (result-answer-reveal)
+    document.getElementById('result-answer-reveal').innerHTML = `
+      <div style="text-align:left;margin-top:16px;">
+        <div style="margin-bottom:8px;"><strong>✅ 정답 범인:</strong> ${ans.criminal || '-'}</div>
+        <div style="margin-bottom:8px;"><strong>🔍 의심거래 유형:</strong> ${ans.suspicious_type || '-'}</div>
+        <div style="margin-bottom:8px;"><strong>💡 결정적 사유:</strong> ${ans.key_reason || '-'}</div>
+        <div style="margin-bottom:8px;"><strong>👤 고객 특성:</strong> ${ans.customer_trait || '-'}</div>
+      </div>`;
+
+    // result-icon / result-title / result-subtitle
+    const icons = document.getElementById('result-icon');
+    const rtitle = document.getElementById('result-title');
+    const rsub = document.getElementById('result-subtitle');
+    if (icons) icons.textContent = '🎉';
+    if (rtitle) rtitle.textContent = '수사 성공!';
+    if (rsub) rsub.textContent = `${APP.submitCount}번 만에 범인을 잡았습니다.`;
 
     // 랭킹 저장
     const month = APP.getCurrentMonth();
-    const rankData = {
+    await APP.saveRanking({
       gameId: APP.currentGameData.id,
       gameTitle: APP.currentGameData.title || '-',
       industry: APP.currentGameData.industry,
@@ -404,22 +469,36 @@ async function submitAnswer() {
       month,
       nickname: APP.currentUser?.nickname || '익명',
       maskedName: APP.maskName(APP.currentUser?.name || '익명')
-    };
-    await APP.saveRanking(rankData);
+    });
 
     document.getElementById('result-ranking-info').innerHTML =
       '<div class="badge badge-success" style="font-size:13px;padding:8px 20px;">🏆 랭킹에 등재되었습니다!</div>';
     loadRankingDisplay();
     showPage('page-result');
+
   } else {
     APP.penaltySeconds += 30;
-    const feedback = document.getElementById('wrong-feedback-area');
-    feedback.innerHTML = `
-      <div class="toast toast-error" style="position:relative;display:block;margin:8px 0;">
+
+    // answer-feedback (HTML 요소) 사용
+    const fb = document.getElementById('answer-feedback');
+    if (fb) {
+      fb.style.display = 'block';
+      fb.innerHTML = `<div class="toast toast-error" style="position:relative;display:block;margin:8px 0;">
         ❌ 오답입니다. (+30초 패널티) — 매칭된 키워드: ${result.matchedKeywords.length > 0 ? result.matchedKeywords.join(', ') : '없음'}
       </div>`;
-    setTimeout(() => { feedback.innerHTML = ''; }, 3000);
-    showToast(`오답입니다. 다시 시도하세요. (제출 ${APP.submitCount}회)`, 'error');
+      setTimeout(() => { fb.style.display = 'none'; fb.innerHTML = ''; }, 3000);
+    }
+
+    // wrong-feedback-area도 있으면 업데이트
+    const wf = document.getElementById('wrong-feedback-area');
+    if (wf) {
+      wf.innerHTML = `<div class="toast toast-error" style="position:relative;display:block;margin:8px 0;">
+        ❌ 오답 (${APP.submitCount}회 제출)
+      </div>`;
+      setTimeout(() => { wf.innerHTML = ''; }, 3000);
+    }
+
+    showToast(`오답입니다. 다시 시도하세요. (${APP.submitCount}회 제출)`, 'error');
   }
 }
 
@@ -1098,3 +1177,62 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     if (e.target === overlay) overlay.classList.remove('active');
   });
 });
+
+// =================== 포기 / 정답보기 / 재시작 ===================
+function confirmGiveUp() {
+  showModal('modal-giveup');
+}
+
+async function doGiveUp() {
+  closeModal('modal-giveup');
+  clearInterval(APP.timerInterval);
+  const ans = APP.currentGameData?.answer;
+  document.getElementById('result-icon').textContent = '🏳️';
+  document.getElementById('result-title').textContent = '게임 포기';
+  document.getElementById('result-subtitle').textContent = '다음에 다시 도전해보세요!';
+  document.getElementById('result-time').textContent = APP.formatTime(APP.elapsedSeconds);
+  document.getElementById('result-submit-count').textContent = APP.submitCount + '회';
+  document.getElementById('result-hint-count').textContent = hintUsedCount + '회';
+  document.getElementById('result-difficulty').textContent = APP.DIFFICULTY_LABELS[APP.difficulty] || APP.difficulty;
+  if (ans) {
+    document.getElementById('result-answer-reveal').innerHTML = `
+      <div style="text-align:left;margin-top:16px;">
+        <div style="margin-bottom:8px;"><strong>✅ 정답 범인:</strong> ${ans.criminal || '-'}</div>
+        <div style="margin-bottom:8px;"><strong>🔍 의심거래 유형:</strong> ${ans.suspicious_type || '-'}</div>
+        <div style="margin-bottom:8px;"><strong>💡 결정적 사유:</strong> ${ans.key_reason || '-'}</div>
+        <div style="margin-bottom:8px;"><strong>👤 고객 특성:</strong> ${ans.customer_trait || '-'}</div>
+      </div>`;
+  }
+  document.getElementById('result-ranking-info').innerHTML =
+    '<div class="badge badge-danger" style="font-size:13px;padding:8px 20px;">❌ 랭킹 미등재</div>';
+  showPage('page-result');
+}
+
+function showAnswerReveal() {
+  showModal('modal-answer-reveal');
+}
+
+async function doShowAnswer() {
+  closeModal('modal-answer-reveal');
+  clearInterval(APP.timerInterval);
+  const ans = APP.currentGameData?.answer;
+  document.getElementById('result-icon').textContent = '📋';
+  document.getElementById('result-title').textContent = '정답 확인';
+  document.getElementById('result-subtitle').textContent = '랭킹에 등재되지 않습니다.';
+  document.getElementById('result-time').textContent = APP.formatTime(APP.elapsedSeconds);
+  document.getElementById('result-submit-count').textContent = APP.submitCount + '회';
+  document.getElementById('result-hint-count').textContent = hintUsedCount + '회';
+  document.getElementById('result-difficulty').textContent = APP.DIFFICULTY_LABELS[APP.difficulty] || APP.difficulty;
+  if (ans) {
+    document.getElementById('result-answer-reveal').innerHTML = `
+      <div style="text-align:left;margin-top:16px;">
+        <div style="margin-bottom:8px;"><strong>✅ 정답 범인:</strong> ${ans.criminal || '-'}</div>
+        <div style="margin-bottom:8px;"><strong>🔍 의심거래 유형:</strong> ${ans.suspicious_type || '-'}</div>
+        <div style="margin-bottom:8px;"><strong>💡 결정적 사유:</strong> ${ans.key_reason || '-'}</div>
+        <div style="margin-bottom:8px;"><strong>👤 고객 특성:</strong> ${ans.customer_trait || '-'}</div>
+      </div>`;
+  }
+  document.getElementById('result-ranking-info').innerHTML =
+    '<div class="badge badge-danger" style="font-size:13px;padding:8px 20px;">❌ 랭킹 미등재</div>';
+  showPage('page-result');
+}
