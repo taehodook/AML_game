@@ -1,6 +1,5 @@
 // ====================================================
 // Firebase 설정
-// Firebase Console > 프로젝트 설정 > 일반 > 내 앱에서 확인
 // ====================================================
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyDuCbLWxy7Y3509457_sx-j2tqnIdUNVEQ",
@@ -19,16 +18,14 @@ let auth = null;
 function verifyAdminPassword(input) { return input === atob("a2ljYzEyMzQ="); }
 
 // ====================================================
-// ✅ 핵심 수정: 플레이스홀더 여부로만 판단
-//    → 실제 키값이 있으면 무조건 Firebase 초기화 시도
+// ✅ 수정 핵심: "YOUR_API_KEY" 플레이스홀더인지만 체크
+//    실제 키값이 들어있으면 무조건 Firebase 연결 시도
 // ====================================================
-const isPlaceholder =
+const _isPlaceholder =
   !FIREBASE_CONFIG.apiKey ||
-  FIREBASE_CONFIG.apiKey === "YOUR_API_KEY" ||
   FIREBASE_CONFIG.apiKey.startsWith("YOUR_");
 
-if (!isPlaceholder) {
-  // ── Firebase 초기화 ──
+if (!_isPlaceholder) {
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
     db   = firebase.database();
@@ -40,14 +37,11 @@ if (!isPlaceholder) {
       if (user && db) {
         try {
           const snap = await db.ref('users/' + user.uid).once('value');
-          if (snap.exists()) {
-            APP.currentUser = { ...snap.val(), uid: user.uid };
-          } else {
-            APP.currentUser = { uid: user.uid, email: user.email };
-          }
+          APP.currentUser = snap.exists()
+            ? { ...snap.val(), uid: user.uid }
+            : { uid: user.uid, email: user.email };
         } catch(e) {
-          console.warn("유저 정보 로드 실패:", e.message);
-          APP.currentUser = null;
+          APP.currentUser = { uid: user.uid, email: user.email };
         }
       } else {
         APP.currentUser = null;
@@ -57,23 +51,20 @@ if (!isPlaceholder) {
 
   } catch(e) {
     console.error("Firebase 초기화 오류:", e.message);
-    _fallbackLocalMode(e.message);
+    _setLocalMode("초기화 오류: " + e.message);
   }
-
 } else {
-  // ── 로컬(데모) 모드 ──
-  console.warn("⚠️ Firebase 미설정 → 로컬 모드로 동작합니다.");
-  _fallbackLocalMode("미설정");
+  console.warn("⚠️ Firebase 미설정 → 로컬 모드");
+  _setLocalMode("미설정");
 }
 
-// ── 로컬 모드 공통 처리 ──
-function _fallbackLocalMode(reason) {
+function _setLocalMode(reason) {
   FIREBASE_READY = false;
   auth = {
-    onAuthStateChanged:              (cb) => { setTimeout(() => cb(null), 50); return () => {}; },
-    createUserWithEmailAndPassword:  ()   => Promise.reject(new Error("Firebase 설정 후 이용 가능합니다. (" + reason + ")")),
-    signInWithEmailAndPassword:      ()   => Promise.reject(new Error("Firebase 설정 후 이용 가능합니다. (" + reason + ")")),
-    signOut:                         ()   => Promise.resolve()
+    onAuthStateChanged:             (cb) => { setTimeout(() => cb(null), 50); return () => {}; },
+    createUserWithEmailAndPassword: ()   => Promise.reject(new Error("Firebase 설정 후 이용 가능합니다.")),
+    signInWithEmailAndPassword:     ()   => Promise.reject(new Error("Firebase 설정 후 이용 가능합니다.")),
+    signOut:                        ()   => Promise.resolve()
   };
   setTimeout(() => { if (window.onAuthStateReady) window.onAuthStateReady(null); }, 100);
 }

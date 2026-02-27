@@ -152,30 +152,42 @@ const APP = {
 
   // =================== 게임 로드 (Firebase 우선, 없으면 로컬) ===================
   async loadGames() {
+    // LOCAL_GAMES는 항상 기본으로 포함 (Firebase 연결 여부 무관)
+    const localGames = this.getLocalGames().filter(g => g.isActive !== false);
+
     if (FIREBASE_READY && db) {
       try {
         const snap = await db.ref('games').orderByChild('isActive').equalTo(true).once('value');
-        const games = [];
-        snap.forEach(child => games.push({ id: child.key, ...child.val() }));
-        if (games.length > 0) return games;
+        const fbGames = [];
+        snap.forEach(child => fbGames.push({ id: child.key, ...child.val() }));
+
+        if (fbGames.length > 0) {
+          // Firebase 게임과 로컬 게임 합산 (id 중복 제거: Firebase 우선)
+          const fbIds = new Set(fbGames.map(g => g.id));
+          const localOnly = localGames.filter(g => !fbIds.has(g.id));
+          return [...fbGames, ...localOnly];
+        }
       } catch(e) {
         console.warn('Firebase 게임 로드 실패 - 로컬로 전환:', e.message);
       }
     }
-    // 로컬 fallback
-    return this.getLocalGames().filter(g => g.isActive !== false);
+    // Firebase 없거나 빈 경우 → LOCAL_GAMES만
+    return localGames;
   },
 
   async loadGame(gameId) {
-    // 로컬 게임 먼저 확인
+    // 1) 로컬 샘플 게임 먼저 확인 (항상 우선)
     const local = this.getLocalGames().find(g => g.id === gameId);
     if (local) return { ...local };
 
+    // 2) Firebase에서 확인
     if (FIREBASE_READY && db) {
       try {
         const snap = await db.ref(`games/${gameId}`).once('value');
-        return snap.exists() ? { id: gameId, ...snap.val() } : null;
-      } catch(e) { return null; }
+        if (snap.exists()) return { id: gameId, ...snap.val() };
+      } catch(e) {
+        console.warn('Firebase loadGame 실패:', e.message);
+      }
     }
     return null;
   },

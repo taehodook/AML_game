@@ -21,11 +21,22 @@ window.onAuthStateReady = function(user) {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await APP.initSampleData();
   buildIndustryGrid();
-  loadRankingDisplay();
   setupExcelUpload();
   setupHintFileUpload();
+
+  // 게임 목록 즉시 로드 (LOCAL_GAMES → 화면에 바로 표시)
+  await loadMainData();
+
+  // 랭킹 로드
+  loadRankingDisplay();
+
+  // Firebase 연결된 경우: DB에 게임 없으면 샘플 업로드 후 다시 로드
+  if (typeof APP.initSampleData === 'function') {
+    await APP.initSampleData();
+    // 샘플 업로드 후 목록 갱신 (Firebase에 올라갔을 수 있으므로)
+    await loadMainData();
+  }
 });
 
 // =================== 업종 그리드 ===================
